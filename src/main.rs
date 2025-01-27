@@ -1,58 +1,56 @@
 
 use std::net::{TcpStream};
 use std::io::{Read,Write};
-use std::str::from_utf8;
+//use std::str::from_utf8;
 
 
 fn main() {
     
     match TcpStream::connect("localhost:6666") {
+
         Ok(mut stream) => {
+
             println!(".> Successful connection");
-            let msg = b"Client Hello...";
+            
+            loop {
+                //set a 50 byte buffer
+                let mut buffer = [0 as u8; 50];
 
-            stream.write(msg).unwrap();
+                match stream.read(&mut buffer) {
+                    Ok(size) if size > 0 => {
 
-            println!(".> Sent message: '{}' awaiting reply...", from_utf8(msg).unwrap());
+                        let received = &buffer[0..size]; // slice the buffer to the actual received size.
 
-            // using a 16 byte buffer, changed from 6, why? no idea
-            //this changed becuase of line 12, the bytes sent.
+                        match String::from_utf8(received.to_vec()) {
+                           Ok(command) => {
 
-            //INcreased buffer size to 50 bytes
-            let mut buffer = [0 as u8; 50];
+                                println!(".> Recieved command: {}", command.trim());
 
-            //changed stream.read_exact to stream.read because read_exact requires the server to send data of exactly the specificed length, which isnt garueneed. stream.read will handle variable-lengh responses. 
-            match stream.read(&mut buffer) {
-                Ok(size) if size > 0 => {
+                                //process command here using OS commands
 
-                    // This block runs if the read was successful and more than 0 bytes were received
+                                let msg = b"DEBUG stream write DEBUG";
 
-                    // improper response check, The comparison if &data == msg checks for a byte-for-byte match but may fail if the server sends a slightly different response or includes padding.
-                    
-                    // slice the actual data recieved.
-                    let recieved_bytes = &buffer[0..size];
-                    println!(".> Raw bytes received: {:?}", recieved_bytes);
-
-                    match from_utf8(recieved_bytes) {
-                        Ok(text) => {
-                            println!(".> Reply from server: '{}'", text.trim());
-                        }
-                        Err(_) => {
-                            println!("!> Recieved non-UTF8 data");
+                                stream.write(msg).unwrap();
+                           } 
+                           Err(_) => {
+                                println!("!> Received non-UTF-8 data");
+                            }
                         }
 
+                        //println!(".> Received command: {:?}", received);
+                    }
+                    Ok(_) => {
+                        println!("!> Server closed the connection.");
+                        break; // exit loop if the server closes the connection
+                    }
+                    Err(e) => {
+                        println!("!> Error reading from the server: {}", e);
                     }
 
                 }
-                Ok(_) => {
-                    println!("!> Server closed the connection without sending data.");
-                }
-                Err(e) => {
-                    println!("!> Failed to read data: {}", e );
-                }
 
+            }
 
-            } 
 
         }
         Err(e) => {
